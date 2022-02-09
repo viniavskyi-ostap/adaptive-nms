@@ -6,7 +6,7 @@ from libcpp.vector cimport vector
 
 
 cpdef square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] responses,
-                                   size_t width, size_t height, size_t target_num_kpts):
+                                   Py_ssize_t width, Py_ssize_t height, Py_ssize_t target_num_kpts):
     """
     Square covering Adaptive Non-Maximum suppression of 2D keypoints
     Args:
@@ -20,7 +20,7 @@ cpdef square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] r
     """
     cdef:
         double low, high, mid
-        size_t current_num_kpts, i
+        Py_ssize_t current_num_kpts, i
         unsigned char complete = False
         vector[Py_ssize_t] result_kpts_idx
 
@@ -39,7 +39,7 @@ cpdef square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] r
         mid = (low + high) / 2
         result_kpts_idx = square_covering_nms(keypoints, priority_idxs, width, height, window_radius=mid)
 
-        current_num_kpts = result_kpts_idx.size()
+        current_num_kpts = <Py_ssize_t> result_kpts_idx.size()
         if current_num_kpts > target_num_kpts:
             low = mid
         elif current_num_kpts < target_num_kpts:
@@ -48,7 +48,7 @@ cpdef square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] r
             complete = True
 
     cdef float[:, :] selected_keypoints = np.empty((result_kpts_idx.size(), 2), dtype=np.float32)
-    for i in range(result_kpts_idx.size()):
+    for i in range(<Py_ssize_t> result_kpts_idx.size()):
         selected_keypoints[i] = keypoints[result_kpts_idx[i]]
     return np.asarray(selected_keypoints)
 
@@ -68,7 +68,7 @@ cpdef vector[Py_ssize_t] square_covering_nms(const float[:, :] keypoints, Py_ssi
         selected_keypoints_idx: 1D array of keypoints indices selected after NMS (K,)
     """
     cdef:
-        size_t i
+        Py_ssize_t i
         double grid_res = window_radius / 2
         Py_ssize_t num_cell_cols = <Py_ssize_t> ceil(width / grid_res)
         Py_ssize_t num_cell_rows = <Py_ssize_t> ceil(height / grid_res)
@@ -96,9 +96,7 @@ cpdef vector[Py_ssize_t] square_covering_nms(const float[:, :] keypoints, Py_ssi
     return result_kpts_idx
 
 
-
-
-cdef double _adaptive_nms_upper_bound(Py_ssize_t width, Py_ssize_t height, Py_ssize_t target_num_kpts):
+cdef double _adaptive_nms_upper_bound(Py_ssize_t width, Py_ssize_t height, Py_ssize_t target_num_kpts) nogil:
     """
     Get upper bound on window radius for given image shape and desired number of keypoints
     """
@@ -117,6 +115,6 @@ cdef double _adaptive_nms_upper_bound(Py_ssize_t width, Py_ssize_t height, Py_ss
     exp3 = sqrt(exp2)
     exp4 = target_num_kpts - 1
 
-    sol = -round(float(exp1 - exp3) / exp4)  # second solution
+    sol = -round((exp1 - exp3) / exp4)  # second solution
 
     return sol
