@@ -4,9 +4,8 @@ import numpy as np
 from libc.math cimport ceil, floor, round, sqrt
 from libcpp.vector cimport vector
 
-
-cpdef square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] responses,
-                                   Py_ssize_t width, Py_ssize_t height, Py_ssize_t target_num_kpts):
+cpdef square_covering_adaptive_nms(keypoints: np.ndarray, responses: np.ndarray,
+                                   width: int, height: int, target_num_kpts: int):
     """
     Square covering Adaptive Non-Maximum suppression of 2D keypoints
     Args:
@@ -18,6 +17,24 @@ cpdef square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] r
     Returns:
         selected_keypoints: 2D array of keypoints selected after NMS (target_num_kpts, 2)
     """
+    # check input parameters
+    if len(keypoints.shape) != 2 and keypoints.shape[1] == 2:
+        raise ValueError(f'`keypoints` must be a 2-dim array of shape (*, 2). Provided shape: {keypoints.shape}')
+    if len(responses.shape) != 1:
+        raise ValueError(f'`responses` must be a 1-dim array. Provided number of dim: {len(responses.shape)}')
+    if responses.shape[0] != keypoints.shape[0]:
+        raise ValueError(f'`keypoints` and `responses` must have equal length along 0-th dimension.'
+                         f' Provided lengths: keypoints={keypoints.shape[0]}', responses={responses.shape[0]})
+    if width <= 0 or height <= 0:
+        raise ValueError('`width` and `height` must be positive integers')
+    if target_num_kpts <= 0 or target_num_kpts >= keypoints.shape[0]:
+        raise ValueError('`target_num_keypoints` must be lie in the interval [1, keypoints.shape[0]-1]')
+
+    selected_keypoints = _square_covering_adaptive_nms(keypoints, responses, width, height, target_num_kpts)
+    return np.asarray(selected_keypoints)
+
+cpdef _square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] responses,
+                                   Py_ssize_t width, Py_ssize_t height, Py_ssize_t target_num_kpts):
     cdef:
         double low, high, mid
         Py_ssize_t current_num_kpts, i
@@ -37,7 +54,7 @@ cpdef square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] r
 
     while not complete:
         mid = (low + high) / 2
-        result_kpts_idx = square_covering_nms(keypoints, priority_idxs, width, height, window_radius=mid)
+        result_kpts_idx = _square_covering_nms(keypoints, priority_idxs, width, height, window_radius=mid)
 
         current_num_kpts = <Py_ssize_t> result_kpts_idx.size()
         if current_num_kpts > target_num_kpts:
@@ -50,10 +67,10 @@ cpdef square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] r
     cdef float[:, :] selected_keypoints = np.empty((result_kpts_idx.size(), 2), dtype=np.float32)
     for i in range(<Py_ssize_t> result_kpts_idx.size()):
         selected_keypoints[i] = keypoints[result_kpts_idx[i]]
-    return np.asarray(selected_keypoints)
+    return selected_keypoints
 
 
-cpdef vector[Py_ssize_t] square_covering_nms(const float[:, :] keypoints, Py_ssize_t[:] priority_idxs,
+cdef vector[Py_ssize_t] _square_covering_nms(const float[:, :] keypoints, Py_ssize_t[:] priority_idxs,
                                              size_t width, size_t height, double window_radius):
     """
     Square covering Non-Maximum suppression of 2D keypoints
