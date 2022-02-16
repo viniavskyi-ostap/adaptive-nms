@@ -28,7 +28,11 @@ cpdef square_covering_adaptive_nms(keypoints: np.ndarray, responses: np.ndarray,
     if width <= 0 or height <= 0:
         raise ValueError('`width` and `height` must be positive integers')
     if target_num_kpts <= 0 or target_num_kpts >= keypoints.shape[0]:
-        raise ValueError('`target_num_keypoints` must be lie in the interval [1, keypoints.shape[0]-1]')
+        raise ValueError('`target_num_keypoints` must lie in the interval [1, keypoints.shape[0]-1]')
+    if keypoints.dtype != np.float32:
+        keypoints = keypoints.astype(np.float32)
+    if responses.dtype != np.float32:
+        responses = responses.astype(np.float32)
 
     selected_keypoints = _square_covering_adaptive_nms(keypoints, responses, width, height, target_num_kpts)
     return np.asarray(selected_keypoints)
