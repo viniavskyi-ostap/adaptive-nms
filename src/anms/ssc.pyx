@@ -5,7 +5,7 @@ from libc.math cimport ceil, floor, round, sqrt
 from libcpp.vector cimport vector
 
 cpdef square_covering_adaptive_nms(keypoints: np.ndarray, responses: np.ndarray,
-                                   width: int, height: int, target_num_kpts: int):
+                                   width: int, height: int, target_num_kpts: int, indices_only: bool = False):
     """
     Square covering Adaptive Non-Maximum suppression of 2D keypoints
     Args:
@@ -14,6 +14,7 @@ cpdef square_covering_adaptive_nms(keypoints: np.ndarray, responses: np.ndarray,
         width: width of image in px where kpts were detected
         height: height of image in px where kpts were detected 
         target_num_kpts: target number of keypoint
+        indices_only: return only indices of selected keypoints
     Returns:
         selected_keypoints: 2D array of keypoints selected after NMS (target_num_kpts, 2)
     """
@@ -34,11 +35,12 @@ cpdef square_covering_adaptive_nms(keypoints: np.ndarray, responses: np.ndarray,
     if responses.dtype != np.float32:
         responses = responses.astype(np.float32)
 
-    selected_keypoints = _square_covering_adaptive_nms(keypoints, responses, width, height, target_num_kpts)
-    return np.asarray(selected_keypoints)
+    result = _square_covering_adaptive_nms(keypoints, responses, width, height, target_num_kpts,
+                                                       indices_only=indices_only)
+    return np.asarray(result)
 
 cpdef _square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] responses,
-                                   Py_ssize_t width, Py_ssize_t height, Py_ssize_t target_num_kpts):
+                                   Py_ssize_t width, Py_ssize_t height, Py_ssize_t target_num_kpts, bint indices_only):
     cdef:
         double low, high, mid
         Py_ssize_t current_num_kpts, i
@@ -67,6 +69,13 @@ cpdef _square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] 
             high = mid
         else:
             complete = True
+
+    cdef long long[:] selected_keypoints_idxs
+    if indices_only:
+        selected_keypoints_idxs = np.empty((result_kpts_idx.size(),), dtype=np.int64)
+        for i in range(<Py_ssize_t> result_kpts_idx.size()):
+            selected_keypoints_idxs[i] = result_kpts_idx[i]
+        return result_kpts_idx
 
     cdef float[:, :] selected_keypoints = np.empty((result_kpts_idx.size(), 2), dtype=np.float32)
     for i in range(<Py_ssize_t> result_kpts_idx.size()):
