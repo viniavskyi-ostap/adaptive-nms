@@ -33,7 +33,7 @@ extensions = [
 
 CYTHONIZE = bool(int(os.getenv("CYTHONIZE", 0))) and cythonize is not None
 
-print("=======", os.getenv("CYTHONIZE", 0))
+print("=======CYTHONIZE=", CYTHONIZE)
 
 if CYTHONIZE:
     compiler_directives = {"language_level": 3, "embedsignature": True}
