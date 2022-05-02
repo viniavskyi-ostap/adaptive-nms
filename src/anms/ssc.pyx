@@ -5,7 +5,8 @@ from libc.math cimport ceil, floor, round, sqrt
 from libcpp.vector cimport vector
 
 cpdef square_covering_adaptive_nms(keypoints: np.ndarray, responses: np.ndarray,
-                                   width: int, height: int, target_num_kpts: int, indices_only: bool = False):
+                                   width: int, height: int, target_num_kpts: int, indices_only: bool = False,
+                                   up_tol: int = 10, max_num_iter: int = 30):
     """
     Square covering Adaptive Non-Maximum suppression of 2D keypoints
     Args:
@@ -15,6 +16,8 @@ cpdef square_covering_adaptive_nms(keypoints: np.ndarray, responses: np.ndarray,
         height: height of image in px where kpts were detected 
         target_num_kpts: target number of keypoint
         indices_only: return only indices of selected keypoints
+        up_tol: tolerance for detection of more keypoints than required
+        max_num_iter: maximum number of bianry search iterations
     Returns:
         selected_keypoints: 2D array of keypoints selected after NMS (target_num_kpts, 2)
     """
@@ -34,17 +37,23 @@ cpdef square_covering_adaptive_nms(keypoints: np.ndarray, responses: np.ndarray,
         keypoints = keypoints.astype(np.float32)
     if responses.dtype != np.float32:
         responses = responses.astype(np.float32)
+    if up_tol < 0:
+        raise ValueError('`up_tol` must be a non-negative integer')
+    if max_num_iter <= 0:
+        raise ValueError('`max_num_iter` must be a positive integer')
 
     result = _square_covering_adaptive_nms(keypoints, responses, width, height, target_num_kpts,
-                                                       indices_only=indices_only)
+                                           indices_only=indices_only, up_tol=up_tol, max_num_iter=max_num_iter)
     return np.asarray(result)
 
 cpdef _square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] responses,
-                                   Py_ssize_t width, Py_ssize_t height, Py_ssize_t target_num_kpts, bint indices_only):
+                                    Py_ssize_t width, Py_ssize_t height, Py_ssize_t target_num_kpts, bint indices_only,
+                                    Py_ssize_t up_tol, unsigned int max_num_iter):
     cdef:
         double low, high, mid
         Py_ssize_t current_num_kpts, i
         unsigned char complete = False
+        unsigned int num_iters = 0
         vector[Py_ssize_t] result_kpts_idx
 
     low = floor(sqrt(keypoints.shape[0] / target_num_kpts))
@@ -63,12 +72,15 @@ cpdef _square_covering_adaptive_nms(const float[:, :] keypoints, const float[:] 
         result_kpts_idx = _square_covering_nms(keypoints, priority_idxs, width, height, window_radius=mid)
 
         current_num_kpts = <Py_ssize_t> result_kpts_idx.size()
+        num_iters += 1
+
+        if (target_num_kpts <= current_num_kpts < target_num_kpts + up_tol) or num_iters == max_num_iter:
+            complete = True
+
         if current_num_kpts > target_num_kpts:
             low = mid
         elif current_num_kpts < target_num_kpts:
             high = mid
-        else:
-            complete = True
 
     cdef long long[:] selected_keypoints_idxs
     if indices_only:
