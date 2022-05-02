@@ -1,13 +1,12 @@
-# adaptive-nms
-Square covering approach for Adaptive 2D Keypoints Non-Maximum Suppression
+## Cython implementation of Efficient adaptive non-maximal suppression algorithms for homogeneous spatial keypoint distribution
 
-## Installation
+### Installation
 
 ```shell
 pip install .
 ```
 
-## Example
+### Example
 
 ```python
 import numpy as np
@@ -32,3 +31,9 @@ kpts_idxs = square_covering_adaptive_nms(
     max_num_iter=30,  # maximum number of binary search iterations
 )
 ```
+
+### References
+
+Paper: [Efficient adaptive non-maximal suppression algorithms for homogeneous spatial keypoint distribution](https://www.researchgate.net/publication/323388062_Efficient_adaptive_non-maximal_suppression_algorithms_for_homogeneous_spatial_keypoint_distribution)
+
+Original implementation: [GitHub](https://github.com/BAILOOL/ANMS-Codes)
